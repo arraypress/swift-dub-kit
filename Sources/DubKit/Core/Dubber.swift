@@ -63,11 +63,14 @@ public enum Dubber {
     ///   - to: The language to dub into.
     ///   - translator: Which translator; `.auto` stays on this machine when
     ///     the pair is installed.
+    ///   - keepFillers: Translate "um" and "uh" too, rather than dropping them.
     /// - Returns: The plan, ready to voice or to edit.
     public static func plan(for url: URL, from: String, to: String,
-                            translator: Translate.Engine = .auto) async throws -> DubPlan {
+                            translator: Translate.Engine = .auto, keepFillers: Bool = false) async throws -> DubPlan {
         let heard = try await listen(to: url, language: from)
-        let lines = LineSplitter.lines(from: heard.words)
+        let words = keepFillers ? heard.words : LineSplitter.withoutFillers(heard.words)
+        guard !words.isEmpty else { throw DubError.nothingHeard(url.lastPathComponent) }
+        let lines = LineSplitter.lines(from: words)
         let translated = try await translate(lines, from: from, to: to, translator: translator)
         return DubPlan(from: from, to: to, translator: translated.engine, duration: heard.duration,
                        lines: translated.lines)
@@ -148,7 +151,12 @@ public enum Dubber {
                             start: placement.start)
         }
 
-        let length = Int((plan.duration * AudioIO.mixRate).rounded())
+        // A video's sound ends with its pictures; a recording with no
+        // pictures grows to hold a last line that ran long, rather than
+        // cutting its final words off.
+        let audioOnly = try await AVURLAsset(url: source).loadTracks(withMediaType: .video).isEmpty
+        let end = audioOnly ? max(plan.duration, placements.last.map { $0.end + 0.25 } ?? 0) : plan.duration
+        let length = Int((end * AudioIO.mixRate).rounded())
         let bed: [[Float]], gain: Float
         switch background {
         case .none: (bed, gain) = ([], 0)
@@ -157,7 +165,6 @@ public enum Dubber {
         }
         let mix = TrackMixer.mix(clips, background: bed, backgroundGain: gain, length: length, sampleRate: AudioIO.mixRate)
 
-        let audioOnly = try await AVURLAsset(url: source).loadTracks(withMediaType: .video).isEmpty
         if audioOnly {
             try AudioIO.write(mix, to: output)
         } else {

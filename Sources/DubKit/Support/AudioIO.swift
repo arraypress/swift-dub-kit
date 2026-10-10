@@ -110,8 +110,13 @@ public enum AudioIO {
         for (index, channel) in channels.prefix(2).enumerated() {
             channel.withUnsafeBufferPointer { buffer.floatChannelData![index].update(from: $0.baseAddress!, count: frames) }
         }
+        // WAV is written as interleaved 16-bit PCM — what every reader
+        // expects — rather than the mixer's float format, which AVAudioFile
+        // accepts only after logging that it ignored half the settings.
         let settings: [String: Any] = url.pathExtension.lowercased() == "wav"
-            ? format.settings
+            ? [AVFormatIDKey: kAudioFormatLinearPCM, AVSampleRateKey: mixRate, AVNumberOfChannelsKey: 2,
+               AVLinearPCMBitDepthKey: 16, AVLinearPCMIsFloatKey: false, AVLinearPCMIsNonInterleaved: false,
+               AVLinearPCMIsBigEndianKey: false]
             : [AVFormatIDKey: kAudioFormatMPEG4AAC, AVSampleRateKey: mixRate, AVNumberOfChannelsKey: 2,
                AVEncoderBitRateKey: 192_000]
         try? FileManager.default.removeItem(at: url)

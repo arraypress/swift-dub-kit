@@ -42,4 +42,7 @@ public struct DubResult: Sendable {
     public var fastest: Double { placements.map(\.speed).max() ?? 1 }
     /// The latest any line started, against its original, in seconds.
     public var latest: TimeInterval { placements.map(\.delay).max() ?? 0 }
+    /// The furthest any line ran past its slot, in seconds. On the last line
+    /// of a video this much is cut off with the picture.
+    public var worstOverrun: TimeInterval { placements.map(\.overrun).max() ?? 0 }
 }

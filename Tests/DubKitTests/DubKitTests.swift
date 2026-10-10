@@ -51,6 +51,27 @@ struct LineSplitterTests {
         #expect(lines[0].source == "a b c d e f")
     }
 
+    @Test("Fillers are dropped before translating, punctuation or not")
+    func fillers() {
+        let kept = LineSplitter.withoutFillers(words("Um, the attack Ah sets uh"))
+        #expect(kept.map(\.text) == ["the", "attack", "sets"])
+    }
+
+    @Test("A dropped filler is not a pause")
+    func fillerIsNotAPause() {
+        // "reacts Ah and": the Ah sits in the middle of a breath.
+        let stream = [TimedWord(text: "reacts", start: 7.86, end: 8.34), TimedWord(text: "Ah", start: 8.40, end: 8.94),
+                      TimedWord(text: "and", start: 8.94, end: 9.12)]
+        #expect(LineSplitter.lines(from: LineSplitter.withoutFillers(stream)).count == 1)
+    }
+
+    @Test("A filler after a pause does not bridge it")
+    func fillerAfterPause() {
+        let stream = [TimedWord(text: "compressors", start: 1.56, end: 2.58), TimedWord(text: "Um", start: 5.10, end: 5.70),
+                      TimedWord(text: "the", start: 5.70, end: 5.94)]
+        #expect(LineSplitter.lines(from: LineSplitter.withoutFillers(stream)).count == 2)
+    }
+
     @Test("No words, no lines")
     func empty() {
         #expect(LineSplitter.lines(from: []).isEmpty)
@@ -144,15 +165,17 @@ struct AudioTests {
         #expect(abs(out.count - 44_100) < 64)
     }
 
-    @Test("What is written reads back at the mix rate and length")
-    func roundTrip() async throws {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("dubkit-\(UUID().uuidString).m4a")
+    @Test("What is written reads back at the mix rate and length", arguments: ["m4a", "wav"])
+    func roundTrip(ext: String) async throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("dubkit-\(UUID().uuidString).\(ext)")
         defer { try? FileManager.default.removeItem(at: url) }
         let frames = 44_100
         try AudioIO.write([[Float](repeating: 0.2, count: frames), [Float](repeating: -0.2, count: frames)], to: url)
         let back = try await AudioIO.decode(url)
         #expect(back.count == 2)
         #expect(abs(back[0].count - frames) < 4096, "AAC pads by a frame or two, no more")
+        #expect(abs(back[0][frames / 2] - 0.2) < 0.01, "left stays left")
+        #expect(abs(back[1][frames / 2] + 0.2) < 0.01, "and right stays right")
     }
 }
 

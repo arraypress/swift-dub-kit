@@ -23,6 +23,39 @@ public enum LineSplitter {
     /// comes out three seconds over is harder to fit than two short ones.
     public static let defaultLongest: TimeInterval = 12
 
+    /// Words that carry no meaning to translate. "ah" is on it, unlike a
+    /// filler-cutting list, because Apple's recogniser writes a spoken "uh"
+    /// as "Ah" (2 of 2 in a probe) and a dub that says "Ah" in Spanish is
+    /// worse than one that drops it.
+    public static let fillers: Set<String> = ["um", "umm", "uh", "uhh", "uhm", "erm", "er", "hmm", "hm", "mhm", "mm", "ah"]
+
+    /// The words without their fillers.
+    ///
+    /// A dropped filler's time is given to the word before it rather than
+    /// left as a hole: "reacts — Ah — and the release" is one breath, and a
+    /// hole where the "Ah" was read as a pause split it into fragments the
+    /// translator then got wrong ("the release" alone became a product
+    /// launch, "el lanzamiento").
+    ///
+    /// - Parameter words: The recognised words.
+    /// - Returns: The words that carry meaning, timed to cover the fillers.
+    public static func withoutFillers(_ words: [TimedWord]) -> [TimedWord] {
+        var kept: [TimedWord] = []
+        for word in words {
+            guard fillers.contains(word.text.trimmingCharacters(in: .punctuationCharacters).lowercased()) else {
+                kept.append(word)
+                continue
+            }
+            // Folded into the word before only when it follows it closely;
+            // a filler after a real pause opens the next phrase, and folding
+            // it back would bridge the pause and merge two lines.
+            if let last = kept.last, word.start - last.end < defaultPause {
+                kept[kept.count - 1] = TimedWord(text: last.text, start: last.start, end: max(last.end, word.end))
+            }
+        }
+        return kept
+    }
+
     /// The lines in a stream of words.
     ///
     /// - Parameters:
