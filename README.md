@@ -45,6 +45,32 @@ Measured, and the numbers behind each choice:
   sentence, and the translator turned "the release" alone into *el lanzamiento*,
   a product launch.
 
+## On real speech
+
+Two public-domain recordings from archive.org: four minutes of a NASA crew
+interview (STS-133, studio, a fluent speaker) and five minutes of a 1985 oral
+history (Hanford Mills Museum, Public Domain Mark). Apple voices, translation on
+this Mac, `.voiceOver` bed.
+
+**The first run was a failure, and found a bug.** Apple's recogniser times
+words end to end — in fluent speech every gap is zero — so the 12-second rule
+broke a long run at its first tied "widest gap", cut one word off, stayed too
+long, and did it again on the next word. The interview became 94 lines, most of
+them one word with a slot of a fraction of a second:
+
+| Interview, 4:00 | 0.1.0 | split at the middle |
+|---|---|---|
+| Lines | 94 (median 0.3 s) | 33 (median 6.8 s) |
+| Spanish: overrunning, latest start, heard | 69, 16.4 s late, 94% | **0**, on time, **98.2%** (fastest 1.29×) |
+| French | 74, 21.0 s late, 79.8% | 1 (0.7 s), **92.7%** |
+| German | 76, 14.7 s late, 85.4% | 9 (worst 1.4 s), **93.1%** |
+| Oral history → Spanish | — | 45 lines, 0 overrunning, 93.7% |
+
+A dub of four to five minutes takes 45–60 s on this Mac, most of it the two
+listens. German runs longest — even split properly, 30 of 33 lines needed
+speeding up and 9 still overran at 1.5×; shortening those lines in the plan is
+the lever. Not measured: how the dubs sound to a person.
+
 ## What plays underneath
 
 `Background.voiceOver` keeps the original at −18 dB; `.none` drops it;

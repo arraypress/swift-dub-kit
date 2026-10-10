@@ -99,13 +99,24 @@ public enum LineSplitter {
         return ".!?…。！？".contains(last)
     }
 
-    /// The index of the word after the widest gap in a run of words.
+    /// Where to break a run of words that is too long: at its widest gap,
+    /// and among gaps nearly as wide, the one nearest the middle.
+    ///
+    /// The middle matters because Apple's recogniser times words end to end —
+    /// every gap in fluent speech is zero. Taking the first of a hundred tied
+    /// gaps cut one word off the front, the run stayed too long, and the next
+    /// word did it again: a four-minute NASA interview came out as dozens of
+    /// one-word lines, each given a slot of a fraction of a second, and the
+    /// dub drifted twenty seconds behind the picture. Broken in the middle, a
+    /// run splits into two halves that each fit.
     static func widestGap(in words: [TimedWord]) -> Int {
-        var best = 1, widest = -TimeInterval.infinity
-        for index in 1..<words.count {
-            let gap = words[index].start - words[index - 1].end
-            if gap > widest { widest = gap; best = index }
-        }
-        return best
+        guard words.count > 2 else { return 1 }
+        let gaps = (1..<words.count).map { ($0, words[$0].start - words[$0 - 1].end) }
+        let widest = gaps.map(\.1).max() ?? 0
+        // A gap under 50 ms is no pause at all; all of them tie.
+        let floor = widest < 0.05 ? -TimeInterval.infinity : widest * 0.8
+        let middle = (words[0].start + words[words.count - 1].end) / 2
+        return gaps.filter { $0.1 >= floor }
+            .min { abs(words[$0.0].start - middle) < abs(words[$1.0].start - middle) }?.0 ?? 1
     }
 }

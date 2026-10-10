@@ -57,6 +57,16 @@ struct LineSplitterTests {
         #expect(kept.map(\.text) == ["the", "attack", "sets"])
     }
 
+    @Test("Fluent speech timed end to end splits into halves, not single words")
+    func contiguous() {
+        // 60 words, 0.3 s each, no gap at all — how Apple times a fluent speaker.
+        let stream = (0..<60).map { TimedWord(text: "w\($0)", start: Double($0) * 0.3, end: Double($0 + 1) * 0.3) }
+        let lines = LineSplitter.lines(from: stream)
+        #expect(lines.allSatisfy { $0.duration >= 3 }, "\(lines.map(\.duration))")
+        #expect(lines.allSatisfy { $0.duration <= LineSplitter.defaultLongest })
+        #expect(lines.map { $0.source.split(separator: " ").count }.reduce(0, +) == 60, "no word lost")
+    }
+
     @Test("A dropped filler is not a pause")
     func fillerIsNotAPause() {
         // "reacts Ah and": the Ah sits in the middle of a breath.
