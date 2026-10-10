@@ -12,6 +12,7 @@
 
 import AVFoundation
 import Foundation
+import SpeechSynthesizer
 import Testing
 @testable import DubKit
 
@@ -239,5 +240,38 @@ struct PlanTests {
                            lines: [DubLine(start: 1, end: 2, source: "hello", translation: "hola")])
         let decoded = try JSONDecoder().decode(DubPlan.self, from: JSONEncoder().encode(plan))
         #expect(decoded == plan)
+    }
+}
+
+@Suite("Which voice says it")
+struct VoicePickerTests {
+
+    private func apple(_ id: String, _ language: String) -> TTSVoice {
+        TTSVoice(id: id, name: id, language: language, model: .apple)
+    }
+
+    @Test("A downloaded premium voice beats the compact one listed first")
+    func premiumFirst() {
+        let voices = [apple("com.apple.voice.compact.es-ES.Monica", "es-ES"),
+                      apple("com.apple.eloquence.es-ES.Grandma", "es-ES"),
+                      apple("com.apple.voice.enhanced.es-ES.Monica", "es-ES"),
+                      apple("com.apple.voice.premium.es-ES.Marisol", "es-ES")]
+        #expect(VoicePicker.best(of: voices, for: "es")?.id == "com.apple.voice.premium.es-ES.Marisol")
+    }
+
+    @Test("The smallest voice still beats a novelty one, and order breaks ties")
+    func noveltyLast() {
+        let voices = [apple("com.apple.eloquence.ru-RU.Rocko", "ru-RU"),
+                      apple("com.apple.voice.super-compact.ru-RU.Milena", "ru-RU")]
+        #expect(VoicePicker.best(of: voices, for: "ru")?.id == "com.apple.voice.super-compact.ru-RU.Milena")
+        let two = [apple("com.apple.voice.compact.es-ES.Monica", "es-ES"), apple("com.apple.voice.compact.es-MX.Paulina", "es-MX")]
+        #expect(VoicePicker.best(of: two, for: "es")?.name == "com.apple.voice.compact.es-ES.Monica")
+    }
+
+    @Test("An engine with no voice in the language offers none — Kokoro has no Spanish here")
+    func noneInLanguage() {
+        let kokoro = [TTSVoice(id: "af_heart", name: "Heart", language: "en-US", model: .kokoro)]
+        #expect(VoicePicker.best(of: kokoro, for: "es") == nil)
+        #expect(VoicePicker.best(of: kokoro, for: "en")?.id == "af_heart")
     }
 }

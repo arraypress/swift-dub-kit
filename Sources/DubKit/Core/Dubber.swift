@@ -113,7 +113,8 @@ public enum Dubber {
     ///   - output: Where to write: the source's container for a video,
     ///     `.m4a` or `.wav` for sound.
     ///   - engine: The voice engine.
-    ///   - voice: A voice, or nil for the engine's first in the plan's language.
+    ///   - voice: A voice, or nil for the engine's best in the plan's language
+    ///     (``VoicePicker``); none at all throws ``DubError/noVoice(_:)``.
     ///   - background: What plays underneath.
     ///   - maximumSpeed: The fastest a line may be spoken.
     /// - Returns: Where every line went and how well it fitted.
@@ -128,7 +129,10 @@ public enum Dubber {
         if let voice {
             options.voice = voice
         } else {
-            options.voice = try await engine.availableVoices().first { $0.language.lowercased().hasPrefix(plan.to.lowercased()) }
+            guard let best = VoicePicker.best(of: try await engine.availableVoices(), for: plan.to) else {
+                throw DubError.noVoice(plan.to)
+            }
+            options.voice = best
         }
 
         // Every line at its natural pace, resampled to the mix rate.

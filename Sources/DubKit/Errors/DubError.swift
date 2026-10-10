@@ -25,6 +25,8 @@ public enum DubError: Error, LocalizedError, Sendable, Equatable {
     case exportFailed(String)
     /// A plan's lines are out of order, overlap, or fall outside the recording.
     case invalidPlan(String)
+    /// The engine has no voice in the language to dub into.
+    case noVoice(String)
 
     /// A lowercase phrase that reads inside a sentence, for a CLI or a log.
     public var errorDescription: String? {
@@ -36,6 +38,7 @@ public enum DubError: Error, LocalizedError, Sendable, Equatable {
         case .audioFailed(let why): return "the audio could not be made: \(why)"
         case .exportFailed(let why): return "the dub could not be written: \(why)"
         case .invalidPlan(let why): return "the plan is not usable: \(why)"
+        case .noVoice(let language): return "no voice speaks \(language)"
         }
     }
 }
